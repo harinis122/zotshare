@@ -5,7 +5,22 @@
 
 // In real apps, users/lobbies would be stored in a database.
 // For now, we use simple arrays as fake storage.
-// payment is through Mock USDC for now
+// Payment is through Mock USDC/demo credits for now.
+
+const readline = require("readline");
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function ask(question) {
+  return new Promise(function (resolve) {
+    rl.question(question, function (answer) {
+      resolve(answer);
+    });
+  });
+}
 
 const users = [];
 const lobbies = [];
@@ -13,32 +28,21 @@ const lobbies = [];
 // -------------------------------
 // Function 1: Login user
 // -------------------------------
-// This simulates UCI-only login.
-// Later, this can be replaced with real Google OAuth / Supabase Auth.
 
 function login(name, email) {
-  // Check if email is a UCI email
   if (!email.endsWith("@uci.edu")) {
     console.log("Rejected: only UCI emails are allowed.");
     return null;
   }
 
-  // Create a fake user object
   const user = {
     id: users.length + 1,
     name: name,
     email: email,
-
-    // Fake wallet for now.
-    // Later, this would come from an embedded wallet provider.
     walletAddress: "fake_wallet_" + (users.length + 1),
-
-    // Fake mock USDC balance.
-    // Later, this would come from MockUSDC smart contract balance.
     mockUsdcBalance: 50
   };
 
-  // Save user into fake storage
   users.push(user);
 
   console.log("Login successful:", user.email);
@@ -48,7 +52,6 @@ function login(name, email) {
 // -------------------------------
 // Function 2: Create ride lobby
 // -------------------------------
-// Host creates a ride lobby after an event.
 
 function createLobby(hostEmail, pickupLocation, destination, departureTime, maxRiders, depositAmount) {
   const lobby = {
@@ -59,18 +62,14 @@ function createLobby(hostEmail, pickupLocation, destination, departureTime, maxR
     destination: destination,
     departureTime: departureTime,
 
-    maxRiders: maxRiders,
+    // maxRiders means number of riders.
+    // But members includes the host too, so total capacity is maxRiders + 1.
+    maxRiders: maxRiders + 1,
+
     depositAmount: depositAmount,
-
-    // Lobby starts open.
-    // Later statuses can be: OPEN, LOCKED, COMPLETED, CANCELLED
     status: "OPEN",
-
-    // Fake escrow balance.
-    // Later, this would be money held in a smart contract.
     escrowBalance: 0,
 
-    // Host is automatically added as a member
     members: [
       {
         email: hostEmail,
@@ -81,7 +80,6 @@ function createLobby(hostEmail, pickupLocation, destination, departureTime, maxR
     ]
   };
 
-  // Save lobby into fake storage
   lobbies.push(lobby);
 
   console.log("Lobby created:", lobby.id);
@@ -91,7 +89,6 @@ function createLobby(hostEmail, pickupLocation, destination, departureTime, maxR
 // -------------------------------
 // Function 3: Join lobby
 // -------------------------------
-// Rider joins an existing open lobby.
 
 function joinLobby(lobbyId, riderEmail) {
   const lobby = lobbies.find(function (lobby) {
@@ -138,7 +135,6 @@ function joinLobby(lobbyId, riderEmail) {
 // -------------------------------
 // Function 4: Deposit mock USDC
 // -------------------------------
-// This simulates a rider depositing money into escrow.
 
 function deposit(lobbyId, riderEmail) {
   const lobby = lobbies.find(function (lobby) {
@@ -178,13 +174,8 @@ function deposit(lobbyId, riderEmail) {
     return null;
   }
 
-  // Subtract money from rider
   user.mockUsdcBalance -= lobby.depositAmount;
-
-  // Add money to fake escrow
   lobby.escrowBalance += lobby.depositAmount;
-
-  // Mark rider as paid
   member.paymentStatus = "PAID";
 
   console.log(riderEmail + " deposited " + lobby.depositAmount + " mock USDC.");
@@ -194,7 +185,6 @@ function deposit(lobbyId, riderEmail) {
 // -------------------------------
 // Function 5: Lock lobby
 // -------------------------------
-// Host locks lobby before the ride starts.
 
 function lockLobby(lobbyId, hostEmail) {
   const lobby = lobbies.find(function (lobby) {
@@ -234,7 +224,6 @@ function lockLobby(lobbyId, hostEmail) {
 // -------------------------------
 // Function 6: Confirm completion
 // -------------------------------
-// Rider confirms that the ride happened.
 
 function confirmCompletion(lobbyId, riderEmail) {
   const lobby = lobbies.find(function (lobby) {
@@ -274,7 +263,6 @@ function confirmCompletion(lobbyId, riderEmail) {
 // -------------------------------
 // Function 7: Release funds to host
 // -------------------------------
-// If enough riders confirmed, money goes to host.
 
 function releaseFunds(lobbyId, hostEmail) {
   const lobby = lobbies.find(function (lobby) {
@@ -313,73 +301,127 @@ function releaseFunds(lobbyId, hostEmail) {
     return null;
   }
 
-  // Transfer escrow balance to host
   host.mockUsdcBalance += lobby.escrowBalance;
 
-  // Mark rider payments as released
   lobby.members.forEach(function (member) {
     if (member.role === "RIDER" && member.paymentStatus === "PAID") {
       member.paymentStatus = "RELEASED";
     }
   });
 
-  // Empty escrow
   lobby.escrowBalance = 0;
-
-  // Complete lobby
   lobby.status = "COMPLETED";
 
   console.log("Funds released to host:", hostEmail);
   return lobby;
 }
 
-// ===============================
-// Demo flow
-// ===============================
+// -------------------------------
+// Main interactive program
+// -------------------------------
 
-// 1. Users log in
-const host = login("Harini", "harini@uci.edu");
-const rider = login("Kert", "kcorpin@uci.edu");
+async function main() {
+  console.log("Welcome to ZotShare!");
 
-// 2. Host creates lobby
-const lobby = createLobby(
-  host.email,
-  "UCI Student Center",
-  "UTC Apartments",
-  "9:30 PM",
-  4,
-  8
-);
+  const hostName = await ask("Enter host name: ");
+  const hostEmail = await ask("Enter host UCI email: ");
 
-// 3. Rider joins lobby
-joinLobby(lobby.id, rider.email);
+  const host = login(hostName, hostEmail);
 
-// 4. Rider deposits mock USDC
-deposit(lobby.id, rider.email);
+  if (!host) {
+    rl.close();
+    return;
+  }
 
-// 5. Host locks lobby
-lockLobby(lobby.id, host.email);
+  const pickupLocation = await ask("Enter pickup location: ");
+  const destination = await ask("Enter destination: ");
+  const departureTime = await ask("Enter departure time: ");
+  const maxRidersInput = await ask("Enter number of riders: ");
+  const depositAmountInput = await ask("Enter deposit amount per rider: ");
 
-// 6. Rider confirms ride happened
-confirmCompletion(lobby.id, rider.email);
+  const maxRiders = Number(maxRidersInput);
+  const depositAmount = Number(depositAmountInput);
 
-// 7. Host receives escrow funds
-releaseFunds(lobby.id, host.email);
+  if (Number.isNaN(maxRiders) || Number.isNaN(depositAmount)) {
+    console.log("Invalid number input.");
+    rl.close();
+    return;
+  }
 
-// 8. Print final result
-console.log("\nFinal Users:");
-console.log(users);
+  if (maxRiders < 1) {
+    console.log("You need at least 1 rider.");
+    rl.close();
+    return;
+  }
 
-console.log("\nFinal Lobbies:");
-console.log(lobbies);
+  if (depositAmount <= 0) {
+    console.log("Deposit amount must be greater than 0.");
+    rl.close();
+    return;
+  }
 
+  const lobby = createLobby(
+    host.email,
+    pickupLocation,
+    destination,
+    departureTime,
+    maxRiders,
+    depositAmount
+  );
 
-// users array       = fake users table
-// lobbies array     = fake lobbies table
-// walletAddress     = fake embedded wallet
-// mockUsdcBalance   = fake Mock USDC
-// escrowBalance     = fake smart contract escrow
-// deposit()         = fake blockchain deposit
-// releaseFunds()    = fake blockchain payout
+  const riders = [];
 
+  for (let i = 1; i <= maxRiders; i++) {
+    console.log("\nRider " + i);
 
+    const riderName = await ask("Enter rider name: ");
+    const riderEmail = await ask("Enter rider UCI email: ");
+
+    const rider = login(riderName, riderEmail);
+
+    if (!rider) {
+      console.log("Invalid rider. Skipping.");
+      continue;
+    }
+
+    const joinedLobby = joinLobby(lobby.id, rider.email);
+
+    if (!joinedLobby) {
+      console.log("Could not join rider to lobby. Skipping deposit.");
+      continue;
+    }
+
+    const depositedLobby = deposit(lobby.id, rider.email);
+
+    if (!depositedLobby) {
+      console.log("Deposit failed for " + rider.email);
+      continue;
+    }
+
+    riders.push(rider);
+  }
+
+  const lockedLobby = lockLobby(lobby.id, host.email);
+
+  if (!lockedLobby) {
+    console.log("Could not lock lobby.");
+    rl.close();
+    return;
+  }
+
+  for (const rider of riders) {
+    confirmCompletion(lobby.id, rider.email);
+  }
+
+  releaseFunds(lobby.id, host.email);
+
+  console.log("\nFinal Users:");
+  console.log(users);
+
+  console.log("\nFinal Lobbies:");
+  console.log(lobbies);
+
+  rl.close();
+}
+
+main();
