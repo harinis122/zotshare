@@ -2,7 +2,7 @@
 data.py
 
 Purpose:
-This file is the fake database for the MVP.
+This file is the fake database for the ZotShare MVP.
 
 Think of this file as a temporary notebook.
 
@@ -13,6 +13,9 @@ For now, we store data in Python lists:
 
 This lets us build and test the backend without setting up Supabase,
 PostgreSQL, or any real database.
+
+System design picture:
+React frontend -> main.py routes -> logic.py rules -> data.py fake storage
 
 Important:
 This data disappears when the backend server restarts.
@@ -33,8 +36,6 @@ This file should NOT:
 """
 
 
-"""
-Suggested:
 users = []
 
 events = [
@@ -47,4 +48,3 @@ events = [
 ]
 
 lobbies = []
-"""

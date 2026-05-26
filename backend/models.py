@@ -18,6 +18,10 @@ So we create a LoginRequest model with:
 - name
 - email
 
+System design picture:
+React frontend sends JSON -> main.py receives it -> models.py validates
+the request body shape -> logic.py does the work -> data.py stores data.
+
 This file should:
 - Use Pydantic BaseModel
 - Define request classes like LoginRequest and CreateLobbyRequest
@@ -35,7 +39,6 @@ MVP goal:
 models.py only describes what information each API request needs.
 """
 
-"""
 from pydantic import BaseModel
 
 
@@ -71,5 +74,3 @@ class ConfirmCompletionRequest(BaseModel):
 
 class HostActionRequest(BaseModel):
     host_email: str
-
-"""
