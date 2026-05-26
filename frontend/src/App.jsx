@@ -27,18 +27,18 @@ import {
 } from "./api.js";
 
 const emptyLobbyForm = {
-  pickup_location: "UCI Student Center",
-  destination: "Irvine Station",
-  departure_time: "8:30 PM",
-  max_riders: 3,
-  deposit_amount: 10,
+  pickup_location: "",
+  destination: "",
+  departure_time: "",
+  max_riders: "",
+  deposit_amount: "",
 };
 
 function App() {
   const [screen, setScreen] = useState("login");
-  const [name, setName] = useState("Harini");
-  const [email, setEmail] = useState("harini@uci.edu");
-  const [eventCode, setEventCode] = useState("VENUS2026");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [eventCode, setEventCode] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [verifiedEvent, setVerifiedEvent] = useState(null);
   const [lobbyForm, setLobbyForm] = useState(emptyLobbyForm);
@@ -237,12 +237,20 @@ function App() {
 
           <label>
             Name
-            <input value={name} onChange={(event) => setName(event.target.value)} />
+            <input
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
           </label>
 
           <label>
             UCI email
-            <input value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
 
           <button type="submit">Continue to lobbies</button>
@@ -263,7 +271,11 @@ function App() {
 
           <label>
             Event code
-            <input value={eventCode} onChange={(event) => setEventCode(event.target.value)} />
+            <input
+              required
+              value={eventCode}
+              onChange={(event) => setEventCode(event.target.value)}
+            />
           </label>
 
           <div className="button-row">
@@ -297,6 +309,7 @@ function App() {
             <label>
               Pickup
               <input
+                required
                 value={lobbyForm.pickup_location}
                 onChange={(event) => updateLobbyForm("pickup_location", event.target.value)}
               />
@@ -305,6 +318,7 @@ function App() {
             <label>
               Destination
               <input
+                required
                 value={lobbyForm.destination}
                 onChange={(event) => updateLobbyForm("destination", event.target.value)}
               />
@@ -313,6 +327,7 @@ function App() {
             <label>
               Departure time
               <input
+                required
                 value={lobbyForm.departure_time}
                 onChange={(event) => updateLobbyForm("departure_time", event.target.value)}
               />
@@ -321,6 +336,7 @@ function App() {
             <label>
               Max riders
               <input
+                required
                 type="number"
                 min="1"
                 value={lobbyForm.max_riders}
@@ -331,6 +347,7 @@ function App() {
             <label>
               Deposit amount
               <input
+                required
                 type="number"
                 min="1"
                 value={lobbyForm.deposit_amount}

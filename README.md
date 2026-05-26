@@ -27,3 +27,99 @@ Rider deposits funds -> Smart contract holds funds -> Ride completes -> Host rec
 
 Rider deposits funds -> Smart contract holds funds -> Ride happens -> Riders confirm completion -> Smart contract pays the host
 
+## Running the MVP Locally
+
+This repo currently contains a simple demo MVP.
+
+The MVP uses:
+- a FastAPI backend
+- a React/Vite frontend
+- fake in-memory data
+- mock USDC/demo credits
+
+It does not use a real database, real OAuth, real wallets, real USDC, or a real smart contract yet.
+
+### 1. Start the Backend
+
+From the project root:
+
+Mac/Linux:
+
+```bash
+cd backend
+python3 -m pip install -r requirements.txt
+python3 -m uvicorn main:app --reload
+```
+
+Windows:
+
+```bash
+cd backend
+py -m pip install -r requirements.txt
+py -m uvicorn main:app --reload
+```
+
+The backend runs at:
+
+```text
+http://127.0.0.1:8000
+```
+
+You can test backend routes in the FastAPI docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### 2. Start the Frontend
+
+Open a second terminal.
+
+From the project root:
+
+Mac/Linux and Windows:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend runs at:
+
+```text
+http://127.0.0.1:5173/
+```
+
+Keep both servers running at the same time:
+
+```text
+Frontend: http://127.0.0.1:5173/
+Backend:  http://127.0.0.1:8000/
+```
+
+The frontend calls the backend URL in:
+
+```text
+frontend/src/api.js
+```
+
+### Demo Flow
+
+Use the app in this order:
+
+1. Log in with a `@uci.edu` email.
+2. Verify the demo event code: `VENUS2026`.
+3. Create a ride lobby.
+4. Log in as another UCI user in a different browser/session to join as a rider.
+5. Join the lobby.
+6. Deposit mock credits.
+7. Host locks the lobby.
+8. Rider confirms the ride happened.
+9. Host releases funds.
+
+### Resetting Demo Data
+
+Users and lobbies are stored in memory.
+
+That means all demo data resets when the backend server restarts.
