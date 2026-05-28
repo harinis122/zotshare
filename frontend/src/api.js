@@ -47,6 +47,11 @@ export async function verifyEvent(eventCode) {
   return postJson("/events/verify", { event_code: eventCode });
 }
 
+export async function getEvents() {
+  const response = await fetchBackend("/events");
+  return readJsonResponse(response);
+}
+
 export async function createLobby(form) {
   return postJson("/lobbies", form);
 }
@@ -56,8 +61,11 @@ export async function getLobbies() {
   return readJsonResponse(response);
 }
 
-export async function joinLobby(lobbyId, riderEmail) {
-  return postJson(`/lobbies/${lobbyId}/join`, { rider_email: riderEmail });
+export async function joinLobby(lobbyId, riderEmail, eventCode) {
+  return postJson(`/lobbies/${lobbyId}/join`, {
+    rider_email: riderEmail,
+    event_code: eventCode,
+  });
 }
 
 export async function depositCredits(lobbyId, riderEmail) {

@@ -23,7 +23,7 @@ That is okay for the MVP.
 
 This file should:
 - Store fake in-memory lists
-- Include one hardcoded demo event
+- Include hardcoded demo events
 - Stay very simple
 
 This file should NOT:
@@ -41,10 +41,16 @@ users = []
 events = [
     {
         "id": 1,
-        "name": "VenusHacks Demo Night",
-        "event_code": "VENUS2026",
-        "location": "UCI",
-    }
+        "name": "Beach Party",
+        "event_code": "BEACH2026",
+        "location": "Corona del Mar State Beach",
+    },
+    {
+        "id": 2,
+        "name": "End of Year Party",
+        "event_code": "EOY2026",
+        "location": "UCI Student Center",
+    },
 ]
 
 lobbies = []

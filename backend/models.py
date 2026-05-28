@@ -53,6 +53,7 @@ class VerifyEventRequest(BaseModel):
 
 class CreateLobbyRequest(BaseModel):
     host_email: str
+    event_code: str
     pickup_location: str
     destination: str
     departure_time: str
@@ -62,6 +63,7 @@ class CreateLobbyRequest(BaseModel):
 
 class JoinLobbyRequest(BaseModel):
     rider_email: str
+    event_code: str
 
 
 class DepositRequest(BaseModel):

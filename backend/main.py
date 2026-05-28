@@ -40,6 +40,7 @@ from logic import (
     confirm_completion,
     create_lobby,
     deposit,
+    get_events,
     get_lobbies,
     join_lobby,
     lock_lobby,
@@ -92,10 +93,16 @@ def verify_event(request: VerifyEventRequest):
     return event
 
 
+@app.get("/events")
+def list_events():
+    return get_events()
+
+
 @app.post("/lobbies")
 def create_lobby_route(request: CreateLobbyRequest):
     lobby = create_lobby(
         request.host_email,
+        request.event_code,
         request.pickup_location,
         request.destination,
         request.departure_time,
@@ -103,7 +110,7 @@ def create_lobby_route(request: CreateLobbyRequest):
         request.deposit_amount,
     )
     if lobby is None:
-        raise HTTPException(status_code=404, detail="Host not found")
+        raise HTTPException(status_code=404, detail="Host or event not found")
     return lobby
 
 
@@ -114,9 +121,9 @@ def list_lobbies():
 
 @app.post("/lobbies/{lobby_id}/join")
 def join_lobby_route(lobby_id: int, request: JoinLobbyRequest):
-    lobby = join_lobby(lobby_id, request.rider_email)
+    lobby = join_lobby(lobby_id, request.rider_email, request.event_code)
     if lobby is None:
-        raise HTTPException(status_code=400, detail="Could not join lobby")
+        raise HTTPException(status_code=400, detail="Could not join lobby. Verify the matching event code first.")
     return lobby
 
 
@@ -132,7 +139,7 @@ def deposit_route(lobby_id: int, request: DepositRequest):
 def lock_lobby_route(lobby_id: int, request: HostActionRequest):
     lobby = lock_lobby(lobby_id, request.host_email)
     if lobby is None:
-        raise HTTPException(status_code=400, detail="Could not lock lobby")
+        raise HTTPException(status_code=400, detail="Could not lock lobby. All joined riders must deposit first.")
     return lobby
 
 
@@ -140,7 +147,7 @@ def lock_lobby_route(lobby_id: int, request: HostActionRequest):
 def confirm_completion_route(lobby_id: int, request: ConfirmCompletionRequest):
     lobby = confirm_completion(lobby_id, request.rider_email)
     if lobby is None:
-        raise HTTPException(status_code=400, detail="Could not confirm ride")
+        raise HTTPException(status_code=400, detail="Could not confirm ride. The lobby must be locked first.")
     return lobby
 
 
@@ -148,7 +155,7 @@ def confirm_completion_route(lobby_id: int, request: ConfirmCompletionRequest):
 def release_funds_route(lobby_id: int, request: HostActionRequest):
     lobby = release_funds(lobby_id, request.host_email)
     if lobby is None:
-        raise HTTPException(status_code=400, detail="Could not release funds")
+        raise HTTPException(status_code=400, detail="Could not release funds. All paid riders must confirm first.")
     return lobby
 
 

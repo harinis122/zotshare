@@ -18,6 +18,7 @@ import {
   confirmRide,
   createLobby,
   depositCredits,
+  getEvents,
   getLobbies,
   joinLobby,
   lockLobby,
@@ -27,6 +28,7 @@ import {
 } from "./api.js";
 
 const emptyLobbyForm = {
+  event_code: "",
   pickup_location: "",
   destination: "",
   departure_time: "",
@@ -41,15 +43,29 @@ function App() {
   const [eventCode, setEventCode] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [verifiedEvent, setVerifiedEvent] = useState(null);
+  const [events, setEvents] = useState([]);
   const [lobbyForm, setLobbyForm] = useState(emptyLobbyForm);
   const [lobbies, setLobbies] = useState([]);
   const [message, setMessage] = useState("Log in with your UCI email to begin.");
 
   useEffect(() => {
     if (currentUser) {
+      loadEvents();
       refreshLobbies();
     }
   }, [currentUser]);
+
+  async function loadEvents() {
+    try {
+      const data = await getEvents();
+      setEvents(data);
+      if (!lobbyForm.event_code && data.length > 0) {
+        updateLobbyForm("event_code", data[0].event_code);
+      }
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
 
   async function refreshLobbies() {
     try {
@@ -79,13 +95,60 @@ function App() {
     return lobby.members.find((member) => member.email === currentUser.email);
   }
 
+  function riderMembers(lobby) {
+    return lobby.members.filter((member) => member.role === "RIDER");
+  }
+
+  function allRidersPaid(lobby) {
+    const riders = riderMembers(lobby);
+    return riders.length > 0 && riders.every((rider) => rider.payment_status === "PAID");
+  }
+
+  function allRidersConfirmed(lobby) {
+    const riders = riderMembers(lobby);
+    return (
+      riders.length > 0 &&
+      riders.every(
+        (rider) =>
+          rider.payment_status === "PAID" && rider.confirmation_status === "CONFIRMED"
+      )
+    );
+  }
+
   function canJoin(lobby) {
-    return currentUser && !isHost(lobby) && !currentMember(lobby) && lobby.status === "OPEN";
+    return (
+      currentUser &&
+      verifiedEvent &&
+      verifiedEvent.event_code === lobby.event_code &&
+      !isHost(lobby) &&
+      !currentMember(lobby) &&
+      lobby.status === "OPEN"
+    );
+  }
+
+  function needsEventCodeBeforeJoining(lobby) {
+    return currentUser && !verifiedEvent && !isHost(lobby) && !currentMember(lobby) && lobby.status === "OPEN";
+  }
+
+  function hasWrongEventCodeForJoining(lobby) {
+    return (
+      currentUser &&
+      verifiedEvent &&
+      verifiedEvent.event_code !== lobby.event_code &&
+      !isHost(lobby) &&
+      !currentMember(lobby) &&
+      lobby.status === "OPEN"
+    );
   }
 
   function canDeposit(lobby) {
     const member = currentMember(lobby);
-    return member && member.role === "RIDER" && member.payment_status === "NOT_PAID";
+    return (
+      member &&
+      member.role === "RIDER" &&
+      member.payment_status === "NOT_PAID" &&
+      lobby.status === "OPEN"
+    );
   }
 
   function canConfirm(lobby) {
@@ -94,16 +157,22 @@ function App() {
       member &&
       member.role === "RIDER" &&
       member.payment_status === "PAID" &&
-      member.confirmation_status === "PENDING"
+      member.confirmation_status === "PENDING" &&
+      lobby.status === "LOCKED"
     );
   }
 
   function canLock(lobby) {
-    return isHost(lobby) && lobby.status === "OPEN";
+    return isHost(lobby) && lobby.status === "OPEN" && allRidersPaid(lobby);
   }
 
   function canRelease(lobby) {
-    return isHost(lobby) && lobby.status === "LOCKED" && lobby.escrow_balance > 0;
+    return (
+      isHost(lobby) &&
+      lobby.status === "LOCKED" &&
+      lobby.escrow_balance > 0 &&
+      allRidersConfirmed(lobby)
+    );
   }
 
   async function handleLogin(event) {
@@ -138,6 +207,7 @@ function App() {
     try {
       await createLobby({
         host_email: currentUser.email,
+        event_code: lobbyForm.event_code,
         pickup_location: lobbyForm.pickup_location,
         destination: lobbyForm.destination,
         departure_time: lobbyForm.departure_time,
@@ -165,6 +235,7 @@ function App() {
   function handleLogout() {
     setCurrentUser(null);
     setVerifiedEvent(null);
+    setEvents([]);
     setLobbies([]);
     setScreen("login");
     setMessage("Logged out. Log in with a UCI email to begin.");
@@ -266,7 +337,7 @@ function App() {
           <div>
             <p className="step-label">Event access</p>
             <h2>Verify an event code</h2>
-            <p className="small">Demo code: VENUS2026.</p>
+            <p className="small">Enter the private event code shared by the event organizer.</p>
           </div>
 
           <label>
@@ -306,6 +377,21 @@ function App() {
           </div>
 
           <div className="form-grid">
+            <label>
+              Event
+              <select
+                required
+                value={lobbyForm.event_code}
+                onChange={(event) => updateLobbyForm("event_code", event.target.value)}
+              >
+                {events.map((event) => (
+                  <option key={event.event_code} value={event.event_code}>
+                    {event.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <label>
               Pickup
               <input
@@ -375,12 +461,24 @@ function App() {
             type="button"
             onClick={() =>
               runLobbyAction(
-                () => joinLobby(lobby.id, currentUser.email),
+                () => joinLobby(lobby.id, currentUser.email, verifiedEvent.event_code),
                 `You joined lobby #${lobby.id}.`
               )
             }
           >
             Join
+          </button>
+        )}
+
+        {needsEventCodeBeforeJoining(lobby) && (
+          <button type="button" className="secondary" onClick={() => setScreen("verify")}>
+            Verify Event to Join
+          </button>
+        )}
+
+        {hasWrongEventCodeForJoining(lobby) && (
+          <button type="button" className="secondary" onClick={() => setScreen("verify")}>
+            Verify Matching Event
           </button>
         )}
 
@@ -441,6 +539,8 @@ function App() {
         )}
 
         {!canJoin(lobby) &&
+          !needsEventCodeBeforeJoining(lobby) &&
+          !hasWrongEventCodeForJoining(lobby) &&
           !canDeposit(lobby) &&
           !canLock(lobby) &&
           !canConfirm(lobby) &&
@@ -456,7 +556,6 @@ function App() {
           <div>
             <p className="step-label">Ride lobbies</p>
             <h2>Choose your next action</h2>
-            <p className="small">Every button acts as {currentUser.email}.</p>
           </div>
 
           <div className="button-row">
@@ -487,6 +586,8 @@ function App() {
 
           {lobbies.map((lobby) => {
             const member = currentMember(lobby);
+            const riderCount = lobby.members.filter((lobbyMember) => lobbyMember.role === "RIDER").length;
+            const spotsLeft = lobby.max_riders - riderCount;
 
             return (
               <article className="lobby-card" key={lobby.id}>
@@ -504,6 +605,9 @@ function App() {
 
                 <div className="lobby-details">
                   <span>Host: {lobby.host_email}</span>
+                  <span>Event: {lobby.event_name}</span>
+                  <span>Rider spots: {lobby.max_riders} total</span>
+                  <span>Spots left: {spotsLeft}</span>
                   <span>Deposit: {lobby.deposit_amount}</span>
                   <span>Escrow: {lobby.escrow_balance}</span>
                   <span>Your role: {member ? member.role : "Not joined"}</span>

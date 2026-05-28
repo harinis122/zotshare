@@ -72,6 +72,40 @@ def find_member(lobby, email: str):
     return None
 
 
+def get_rider_members(lobby):
+    riders = []
+    for member in lobby["members"]:
+        if member["role"] == "RIDER":
+            riders.append(member)
+    return riders
+
+
+def all_riders_paid(lobby):
+    riders = get_rider_members(lobby)
+    if len(riders) == 0:
+        return False
+
+    for rider in riders:
+        if rider["payment_status"] != "PAID":
+            return False
+
+    return True
+
+
+def all_riders_confirmed(lobby):
+    riders = get_rider_members(lobby)
+    if len(riders) == 0:
+        return False
+
+    for rider in riders:
+        if rider["payment_status"] != "PAID":
+            return False
+        if rider["confirmation_status"] != "CONFIRMED":
+            return False
+
+    return True
+
+
 def login_user(name: str, email: str):
     if not email.endswith("@uci.edu"):
         return None
@@ -98,8 +132,13 @@ def verify_event_code(event_code: str):
     return None
 
 
+def get_events():
+    return events
+
+
 def create_lobby(
     host_email: str,
+    event_code: str,
     pickup_location: str,
     destination: str,
     departure_time: str,
@@ -107,12 +146,16 @@ def create_lobby(
     deposit_amount: int,
 ):
     host = find_user(host_email)
-    if host is None:
+    event = verify_event_code(event_code)
+    if host is None or event is None:
         return None
 
     lobby = {
         "id": len(lobbies) + 1,
         "host_email": host_email,
+        "event_code": event["event_code"],
+        "event_name": event["name"],
+        "event_location": event["location"],
         "pickup_location": pickup_location,
         "destination": destination,
         "departure_time": departure_time,
@@ -137,10 +180,17 @@ def get_lobbies():
     return lobbies
 
 
-def join_lobby(lobby_id: int, rider_email: str):
+def join_lobby(lobby_id: int, rider_email: str, event_code: str):
     lobby = find_lobby(lobby_id)
     rider = find_user(rider_email)
     if lobby is None or rider is None:
+        return None
+
+    event = verify_event_code(event_code)
+    if event is None:
+        return None
+
+    if event["event_code"] != lobby["event_code"]:
         return None
 
     if lobby["status"] != "OPEN":
@@ -174,6 +224,9 @@ def deposit(lobby_id: int, rider_email: str):
     if lobby is None or rider is None:
         return None
 
+    if lobby["status"] != "OPEN":
+        return None
+
     member = find_member(lobby, rider_email)
     if member is None or member["role"] != "RIDER":
         return None
@@ -195,6 +248,12 @@ def lock_lobby(lobby_id: int, host_email: str):
     if lobby is None or lobby["host_email"] != host_email:
         return None
 
+    if lobby["status"] != "OPEN":
+        return None
+
+    if not all_riders_paid(lobby):
+        return None
+
     lobby["status"] = "LOCKED"
     return lobby
 
@@ -204,8 +263,14 @@ def confirm_completion(lobby_id: int, rider_email: str):
     if lobby is None:
         return None
 
+    if lobby["status"] != "LOCKED":
+        return None
+
     member = find_member(lobby, rider_email)
     if member is None or member["role"] != "RIDER":
+        return None
+
+    if member["payment_status"] != "PAID":
         return None
 
     member["confirmation_status"] = "CONFIRMED"
@@ -216,6 +281,12 @@ def release_funds(lobby_id: int, host_email: str):
     lobby = find_lobby(lobby_id)
     host = find_user(host_email)
     if lobby is None or host is None or lobby["host_email"] != host_email:
+        return None
+
+    if lobby["status"] != "LOCKED":
+        return None
+
+    if not all_riders_confirmed(lobby):
         return None
 
     host["balance"] += lobby["escrow_balance"]
