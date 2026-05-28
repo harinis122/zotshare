@@ -8,7 +8,7 @@ Students often leave parties or events alone and pay full price for Uber/Lyft, e
 ZotShare creates event-based ride lobbies where UCI students can join a shared ride. Each rider deposits mock USDC into a smart contract escrow. The host only receives the funds after the ride is completed and confirmed.
 
 ## Key Features
-- UCI-only login using `@uci.edu` email
+- UCI-only login using "@uci.edu" email
 - Event-based ride lobbies
 - Create or join a shared ride
 - Embedded wallet for easy Web3 onboarding
