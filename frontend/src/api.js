@@ -20,7 +20,7 @@ async function readJsonResponse(response) {
 }
 
 async function postJson(path, body) {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetchBackend(path, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -29,6 +29,14 @@ async function postJson(path, body) {
   });
 
   return readJsonResponse(response);
+}
+
+async function fetchBackend(path, options) {
+  try {
+    return await fetch(`${API_BASE}${path}`, options);
+  } catch (error) {
+    throw new Error("Backend is not running. Start FastAPI on http://127.0.0.1:8000.");
+  }
 }
 
 export async function loginUser(name, email) {
@@ -44,7 +52,7 @@ export async function createLobby(form) {
 }
 
 export async function getLobbies() {
-  const response = await fetch(`${API_BASE}/lobbies`);
+  const response = await fetchBackend("/lobbies");
   return readJsonResponse(response);
 }
 

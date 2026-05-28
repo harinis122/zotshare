@@ -34,8 +34,7 @@ Route receives request -> calls logic.py -> returns response.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel 
-from logic import insert_tokens_to_wallet
+from pydantic import BaseModel
 
 from logic import (
     confirm_completion,
@@ -46,6 +45,7 @@ from logic import (
     lock_lobby,
     login_user,
     release_funds,
+    insert_tokens_to_wallet,
     verify_event_code,
 )
 from models import (
@@ -64,6 +64,7 @@ app = FastAPI(title="ZotShare MVP Backend")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -150,21 +151,20 @@ def release_funds_route(lobby_id: int, request: HostActionRequest):
         raise HTTPException(status_code=400, detail="Could not release funds")
     return lobby
 
+
 class TokenInsertRequest(BaseModel):
     wallet_address: str
     amount: int
 
+
 @app.post("/api/tokens/insert")
-async def insert_tokens(payload: TokenInsertRequest):
+def insert_tokens(request: TokenInsertRequest):
     try:
-        # Pass the frontend's requested data into our backend web3 function
-        tx_hash = insert_tokens_to_wallet(payload.wallet_address, payload.amount)
+        tx_hash = insert_tokens_to_wallet(request.wallet_address, request.amount)
         return {
             "status": "success",
-            "message": f"Successfully inserted {payload.amount} MockUSDC tokens!",
-            "transaction_hash": tx_hash
+            "message": f"Successfully inserted {request.amount} MockUSDC tokens.",
+            "transaction_hash": tx_hash,
         }
-    except Exception as e:
-        # If anything breaks (network drop, bad address, wrong key), return a 500 error code
-        raise HTTPException(status_code=500, detail=str(e))
-
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error))
