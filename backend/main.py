@@ -34,6 +34,8 @@ Route receives request -> calls logic.py -> returns response.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel 
+from logic import insert_tokens_to_wallet
 
 from logic import (
     confirm_completion,
@@ -147,3 +149,22 @@ def release_funds_route(lobby_id: int, request: HostActionRequest):
     if lobby is None:
         raise HTTPException(status_code=400, detail="Could not release funds")
     return lobby
+
+class TokenInsertRequest(BaseModel):
+    wallet_address: str
+    amount: int
+
+@app.post("/api/tokens/insert")
+async def insert_tokens(payload: TokenInsertRequest):
+    try:
+        # Pass the frontend's requested data into our backend web3 function
+        tx_hash = insert_tokens_to_wallet(payload.wallet_address, payload.amount)
+        return {
+            "status": "success",
+            "message": f"Successfully inserted {payload.amount} MockUSDC tokens!",
+            "transaction_hash": tx_hash
+        }
+    except Exception as e:
+        # If anything breaks (network drop, bad address, wrong key), return a 500 error code
+        raise HTTPException(status_code=500, detail=str(e))
+

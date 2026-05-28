@@ -47,8 +47,10 @@ MVP rules:
 - Host receives escrow funds
 """
 
+import os
 from data import events, lobbies, users
-
+from web3 import Web3
+from dotenv import load_dotenv
 
 def find_user(email: str):
     for user in users:
@@ -226,3 +228,79 @@ def release_funds(lobby_id: int, host_email: str):
 
     lobby["status"] = "COMPLETED"
     return lobby
+
+# Automatically load environmental keys from your backend/.env.local file
+load_dotenv(dotenv_path=".env.local")
+
+# 1. Establish connection to the Base Sepolia Testnet
+RPC_URL = "https://sepolia.base.org"
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
+
+# 2. Your Smart Contract Coordinates
+# Replace this placeholder with the 0x address printed when you ran your deploy.js script
+MOCK_USDC_ADDRESS = "0xYourDeployedMockUSDCAddressHere"
+
+# 3. Paste the ABI array from your artifacts folder:
+# Located at: zotshare-blockchain/artifacts/contracts/MockUSDC.sol/MockUSDC.json
+MOCK_USDC_ABI = [
+    {
+        "inputs": [
+            {"internalType": "address", "name": "to", "type": "address"},
+            {"internalType": "uint256", "name": "amount", "type": "uint256"}
+        ],
+        "name": "mint",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
+
+# Initialize the contract object if the connection is successful
+if w3.is_connected():
+    token_contract = w3.eth.contract(address=w3.to_checksum_address(MOCK_USDC_ADDRESS), abi=MOCK_USDC_ABI)
+else:
+    token_contract = None
+    print("Warning: Web3 failed to connect to Base Sepolia RPC endpoint.")
+
+def insert_tokens_to_wallet(student_address: str, amount: int) -> str:
+    """
+    Connects to the MockUSDC contract on-chain and mints tokens 
+    directly into a student's wallet address.
+    """
+    if not token_contract:
+        raise Exception("Smart contract instance not initialized. Check blockchain connection.")
+
+    # Properly format values for the Ethereum Virtual Machine (EVM)
+    checksum_to = w3.to_checksum_address(student_address)
+    amount_in_wei = w3.to_wei(amount, 'ether') # Converts regular token units to 18-decimal wei
+    
+    # Grab the deployer private key securely from the environment configuration
+    private_key = os.getenv("DEPLOYER_PRIVATE_KEY")
+    if not private_key:
+        raise Exception("DEPLOYER_PRIVATE_KEY is missing from your .env.local file.")
+        
+    backend_account = w3.eth.account.from_key(private_key)
+    
+    # Build the transaction payload structure
+    nonce = w3.eth.get_transaction_count(backend_account.address)
+    tx_payload = token_contract.functions.mint(checksum_to, amount_in_wei).build_transaction({
+        'chainId': 84532, # Base Sepolia Chain ID
+        'gas': 100000,
+        'gasPrice': w3.eth.gas_price,
+        'nonce': nonce,
+    })
+    
+    # Sign the transaction locally using the private key and broadcast it to the network
+    signed_tx = w3.eth.account.sign_transaction(tx_payload, private_key=private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    
+    # Wait for the transaction to clear a block on the network
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    return tx_receipt.transactionHash.hex()
